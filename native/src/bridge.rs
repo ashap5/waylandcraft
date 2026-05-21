@@ -1744,12 +1744,23 @@ pub extern "system" fn execApp<'l>(
     let app_id: String =
         unsafe { env.get_string_unchecked(&app_id).unwrap() }.into();
 
-    let env_vars = vec![
+    let mut env_vars = vec![
         ("WAYLAND_DISPLAY".into(), instance.state.socket.clone()),
         ("QT_QPA_PLATFORM".into(), "wayland".into()),
         ("ELECTRON_OZONE_PLATFORM_HINT".into(), "auto".into()),
         ("GDK_BACKEND".into(), "wayland".into())
     ];
+
+    if let Some(xdg_runtime) = std::env::var_os("XDG_RUNTIME_DIR") {
+        env_vars.push(("XDG_RUNTIME_DIR".into(), xdg_runtime.clone()));
+
+        // Construct fallback pulse native socket path: unix:$XDG_RUNTIME_DIR/pulse/native
+        let mut pulse_server = std::ffi::OsString::from("unix:");
+        pulse_server.push(&xdg_runtime);
+        pulse_server.push("/pulse/native");
+        env_vars.push(("PULSE_SERVER".into(), pulse_server));
+    }
+
     instance.xdg.exec_app(app_id, env_vars) as jboolean
 }
 
